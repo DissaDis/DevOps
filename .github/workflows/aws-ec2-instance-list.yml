@@ -1,0 +1,22 @@
+name: Provide AWS EC2 instance names and type
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  check-aws-cli-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2  # Change this to your desired region
+        
+    - name: List EC2 name and type
+      run: aws ec2 describe-instances --query "Reservations[].Instances[].Tags[?Key=='Name'].Value" --output text
