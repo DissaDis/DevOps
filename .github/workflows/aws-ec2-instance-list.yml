@@ -37,8 +37,9 @@ jobs:
           
     - name: EC2 GET PUBLIC IP of dontforgetapp-dev 2
       run: |
-          IP_ADDR=$(aws ec2 describe-instances  --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress}"  --instance-id=i-0739d1abf28f9c741 --output text)
-          echo "::set-output name=IP_ADDR::$IP_ADDR"
+          IP_ADDR=$(aws ec2 describe-instances  --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress}"  --instance-id=i-0739d1abf28f9c741 --output text)       
+          echo "IP_ADDR=$IP_ADDR" >> $GITHUB_OUTPUT
+               # echo "::set-output name=IP_ADDR::$IP_ADDR"
       id: ip-addr
   #echo "MAGIC_NUMBER=$MAGIC_NUMBER" >> $GITHUB_ENV
 
