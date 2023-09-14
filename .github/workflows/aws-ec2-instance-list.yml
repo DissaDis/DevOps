@@ -34,7 +34,7 @@ jobs:
         
     - name: EC2 GET PUBLIC IP of dontforgetapp-dev
       run: |
-          IP_ADDR=$(aws ec2 describe-instances  --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress}"  --filters "Name=InstanceId,Values='i-0739d1abf28f9c741'" --output text)
+          IP_ADDR=$(aws ec2 describe-instances  --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress}"  --instance-id=i-0739d1abf28f9c741 --output text)
           echo "::set-output name=IP_ADDR::$IP_ADDR"
           id: ip-addr
 
