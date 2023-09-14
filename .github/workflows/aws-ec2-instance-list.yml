@@ -20,3 +20,6 @@ jobs:
         
     - name: List EC2 name and type
       run: aws ec2 describe-instances --query "Reservations[].Instances[].Tags[?Key=='Name'].Value" --output text
+
+    - name: List EC2 name and type t2.small
+      run: aws ec2 describe-instances  --query "Reservations[*].Instances[*].{Name:Tags[?Key=='Name'] | [0].Value, Instance:InstanceId,InstanceT:InstanceType, Status:State.Name, IP:PrivateIpAddress,  PublicIP:PublicIpAddress}"  --filters "Name=instance-type,Values='t2.small'" --output table
