@@ -21,5 +21,11 @@ jobs:
     - name: List EC2 name and type
       run: aws ec2 describe-instances --query "Reservations[].Instances[].Tags[?Key=='Name'].Value" --output text
 
-    - name: List EC2 name and type t2.small
-      run: aws ec2 describe-instances  --query "Reservations[*].Instances[*].{Name:Tags[?Key=='Name'] | [0].Value, Instance:InstanceId,InstanceT:InstanceType, Status:State.Name, IP:PrivateIpAddress,  PublicIP:PublicIpAddress}"  --filters "Name=instance-type,Values='t2.small'" --output table
+    - name: List EC2 name and type t2.medium
+      run: aws ec2 describe-instances  --query "Reservations[*].Instances[*].{Name:Tags[?Key=='Name'] | [0].Value, Instance:InstanceId,InstanceT:InstanceType, Status:State.Name, IP:PrivateIpAddress,  PublicIP:PublicIpAddress}"  --filters "Name=instance-type,Values='t2.medium'" --output table
+
+    - name: EC2 START instance (dontforgetapp-dev)
+      run:  aws ec2 start-instances --instance-ids i-0739d1abf28f9c741 --output text
+    - name: EC2 STOP instance (dontforgetapp-dev)
+      run:  aws ec2 stop-instances --instance-ids i-0739d1abf28f9c741 --output text
+
