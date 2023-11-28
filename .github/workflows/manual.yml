@@ -1,0 +1,211 @@
+name: "Some useful cases"
+on: workflow_dispatch
+ 
+jobs:
+
+  S3_and_Docker:
+    name: Deploy
+   
+    runs-on: ubuntu-latest
+    environment:
+      name: Development
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Create S3 (aws s3 mb s3://deniss-bucket-3342)
+        run: |
+          aws s3 ls s3://deniss-bucket-3342
+         
+
+          
+          
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: 'us-west-2'
+      
+ 
+      - name: Install Docker in EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+                 
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+  
+          USER_NAME : ${{ vars.USER_NAME}}
+        run: |
+           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} "
+           for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done &      
+           sudo curl -fsSL https://get.docker.com -o get-docker.sh &
+           sudo sh ./get-docker.sh --dry-run &
+           docker -v"
+          
+              
+   
+           
+      - name: Install Docker in EC2 part 2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+                 
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+          USER_NAME : ${{ vars.USER_NAME}}
+        run: |
+           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} "
+                
+            sudo apt-get update&
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin&
+            docker -v&
+            docker ps&"           
+
+     
+
+   
+            
+  Test_http_status:  
+      
+        
+        runs-on: ubuntu-latest
+        steps:
+         
+         - name: Check http status code of production site
+           env :
+ 
+             HOST_NAME : ${{ vars.DNS_ADDR }}
+           uses: lakuapik/gh-actions-http-status@v1
+           with:
+            sites: '[ "http://ec2-34-219-74-168.us-west-2.compute.amazonaws.com"]'
+            expected: '[200]'
+
+  Copy_file:         
+    runs-on: ubuntu-latest
+    env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+                 
+     
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+          USER_NAME : ${{ vars.USER_NAME}}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install AWS CLI
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} "
+           sudo apt-get update&
+           sudo apt-get install -y awscli"
+
+    - name: Create AWS credentials and gzip image
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: 'us-west-2'
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+          USER_NAME : ${{ vars.USER_NAME}}
+
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} " 
+           sudo rm -f /root/.aws/credentials&
+           sudo aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID&
+           sudo aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY&
+           sudo aws configure set default.region $AWS_DEFAULT_REGION&
+           sudo docker save petclinic22:1.0.0 | gzip > myimage_latest.tar.gz"
+    - name: Delay for 30 seconds (gzip)
+      run: sleep 30           
+    - name: Copy to S3 docker image in archive
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: 'us-west-2'
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+          USER_NAME : ${{ vars.USER_NAME}}
+
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} " 
+           sudo aws s3 cp myimage_latest.tar.gz s3://deniss-bucket-3342 --region us-west-2"
+      
+    
+       
+           
+  Petclinic_deploy_docker:         
+   runs-on: ubuntu-latest 
+   steps:
+   - name: Checkout code
+     uses: actions/checkout@v4
+
+   - name: Copy Dockerfile file from Github to EC2
+     env:
+         PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+         HOST_NAME : ${{ vars.DNS_ADDR }}
+         USER_NAME : ${{ vars.USER_NAME}}
+     run: |
+       echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+       ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME}
+        cd $GITHUB_WORKSPACE
+        ls
+        scp -i private_key $GITHUB_WORKSPACE/Dockerfile ubuntu@$HOST_NAME:/home/ubuntu/
+          
+   
+  
+   - name: Deploy Docker
+     env:
+          
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+          USER_NAME : ${{ vars.USER_NAME}}
+
+     run: |
+           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} " 
+           sudo bash ./stop_all_containers.sh& 
+           docker build -t petclinic22:1.0.0 . &
+           docker pull springcommunity/spring-framework-petclinic" 
+   - name: Delay for 60 seconds
+     run: sleep 60        
+     
+   - name: Run 2 containers
+     env:
+          
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+          USER_NAME : ${{ vars.USER_NAME}}
+
+     run: |
+           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} " 
+           docker run -p 8080:8080 -d petclinic22:1.0.0&
+           docker run -p 80:8080 -d springcommunity/spring-framework-petclinic" 
+           
+   - name: Deploy in EC2 (Install petclinic from hub)
+     env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+                 
+          HOST_NAME : ${{ vars.DNS_ADDR }}
+    
+          USER_NAME : ${{ vars.USER_NAME}}
+     run: |
+           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} "
+               
+            
+            docker pull vasiliskovs/petclinic:5.3.22&
+            docker run -p 9090:8080 -d vasiliskovs/petclinic:5.3.22  &
+            docker ps"      
+            
+   - name: Delay for 60 seconds
+     run: sleep 60     
+     
+   - name: Check http status code of productions 2x sites(containers)
+     env :
+            
+             HOST_NAME : ${{ vars.DNS_ADDR }}
+     uses: lakuapik/gh-actions-http-status@v1
+     with:
+           # sites: '[ "http://ec2-34-219-74-168.us-west-2.compute.amazonaws.com","http://ec2-34-219-74-168.us-west-2.compute.amazonaws.com:8080","http://ec2-34-219-74-168.us-west-2.compute.amazonaws.com:9090"]'
+            sites: '[ "http://ec2-34-219-74-168.us-west-2.compute.amazonaws.com"]'
+            expected: '[200] '
