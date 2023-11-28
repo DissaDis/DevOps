@@ -1,4 +1,4 @@
-# Darbs ar Git. Majas Darbs
+# Working with GitHub. Practice
 
 1.	Mapē git_repos noklonēt  https://github.com/hashicorp/terraform projektu
 ```sh
@@ -31,6 +31,8 @@ git log --author “Laura Pacilio” --after=date --before=date
 git log --author “Laura Pacilio” --after=date --before=date
 ```
 ![](img/uzd5.png?auto=format&fit=clip&q=40&w=100)
-# Answer: Nope
-6. Rezultatus apkopot MD faila
-# Results see before
+
+Answer: Nope.
+
+6. Collect the results in an MD file. 
+Here you are.

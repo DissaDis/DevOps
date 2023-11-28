@@ -1,4 +1,4 @@
-#Nokopeta programma DevOps
+#Cloned program DevOps
 
 # This function adds two numbers
 def add(x, y):

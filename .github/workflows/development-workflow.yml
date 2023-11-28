@@ -1,0 +1,168 @@
+name: "Development Build"
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+
+  
+  DeployDev:
+    name: Deploy to Dev
+    # if: github.event_name == 'pull_request'
+ 
+    runs-on: ubuntu-latest
+    environment:
+      name: Development
+
+    steps:
+
+      - uses: actions/checkout@v4 
+      - name: Deploy
+        run: echo "I am deploying the api to AWS"
+
+     
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region: us-west-2  # Change this to your desired region
+
+      - name: EC2 START instance (dontforgetapp-dev)
+        run:  aws ec2 start-instances --instance-ids i-0739d1abf28f9c741 --output text
+      
+      - name: Sleep for 10 seconds (waiting for instance start)
+        uses: jakejarvis/wait-action@master
+        with:
+         time: '10s'
+        
+         
+      - name: EC2 GET PUBLIC IP and DNS of dontforgetapp-dev 
+        run: |
+          IP_ADDR=$(aws ec2 describe-instances  --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress}"  --instance-id=i-0739d1abf28f9c741 --output text)       
+          echo "IP_ADDR=$IP_ADDR" >> $GITHUB_OUTPUT
+          DNS_ADDR=$(aws ec2 describe-instances  --query "Reservations[*].Instances[*].{PublicIP:PublicDnsName}"  --instance-id=i-0739d1abf28f9c741 --output text)       
+          echo "DNS_ADDR=$DNS_ADDR" >> $GITHUB_OUTPUT
+        id: ip-addr
+        
+    
+ # XXX We recommend to export all your variables at once, at the end of your job
+      - name: Export variable _ADDR for next jobs
+        uses: UnlyEd/github-action-store-variable@v3 # See https://github.com/UnlyEd/github-action-store-variable
+        with:
+          # Persist (store) our MAGIC_NUMBER ENV variable into our store, for the next jobs
+          variables: |
+           IP_ADDR=${{ steps.ip-addr.outputs.IP_ADDR }}
+           DNS_ADDR=${{ steps.ip-addr.outputs.DNS_ADDR }}
+          
+
+
+      - name: Deploy in EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
+          HOST_IP :   ${IP_ADDR}
+           #${{ secrets.HOST_IP  }}
+          HOST_NAME : ${DNS_ADDR}
+           #${{ secrets.HOST_NAME  }}
+          USER_NAME : ${{ secrets.USER_NAME  }}
+      #    USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          APP_DIR: ${{secrets.APP_DIR}}
+         # SERVICE_NAME: ${{secrets.SERVICE_NAME}}
+
+        run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${DNS_ADDR} "
+            cd ${APP_DIR} &&
+            git pull origin dev &&
+            rm -r /home/dontforgetapp/www/src/ &&
+            rm -r /home/dontforgetapp/www/static/ &&
+            rm -r /home/dontforgetapp/www/templates/ &&
+            cp -f /home/dontforgetapp/dontforgetapp/run.py /home/dontforgetapp/www/run.py &&
+            cp -r /home/dontforgetapp/dontforgetapp/src/ /home/dontforgetapp/www &&
+            cp -r /home/dontforgetapp/dontforgetapp/static/ /home/dontforgetapp/www &&
+            cp -r /home/dontforgetapp/dontforgetapp/templates/ /home/dontforgetapp/www &&
+            sudo systemctl restart dontforgetapp "
+            
+             #  echo ${USER_PASSWORD} | sudo -S systemctl restart dontforgetapp "
+             
+      
+        
+  Test-Remote:
+    name: Test Remote Deployment
+    needs: [DeployDev]
+    runs-on: ubuntu-latest
+    environment:
+      name: Development
+
+    steps:
+    - name: Test applications
+      run: |
+         echo ${IP_ADDR}-${HOST_IP}-${{ steps.ip-addr.outputs.IP_ADDR }} - "$IP_ADDR"
+         echo "how can I get value from variable here? I need curl $IP_ADDR:80 | grep "Hello" here"
+      #  curl ${IP_ADDR}:80 | grep "Hello "
+
+  Test-Pylint:
+    name: Pylint
+    needs: [DeployDev]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+         python-version: ["3.7","3.9","3.11"]
+    steps:
+    - uses: actions/checkout@v4 
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install Flask 
+        pip install pylint
+        python3 -m flask --version 
+    - name: Analysing the code with pylint
+      run: |
+        pylint $(git ls-files '*.py')
+       
+
+
+  #Waitfor:
+  
+  #  runs-on: self-hosted
+  #  name: wait-job
+  #  needs: [Test-Remote]
+  #  steps:
+   #   - name: Sleep for 3 minutes
+  #      run: sleep 180s
+  #       shell: bash
+
+  StopAfterDeploy:
+    name: Stop instance after Deploy to Dev
+    needs: [Test-Remote]
+ 
+    runs-on: ubuntu-latest
+    environment:
+      name: Development
+
+    steps:
+
+      - uses: actions/checkout@v4 
+      - name: Deploy
+        run: echo "I am deploying the api to AWS"
+
+     
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region: us-west-2  # Change this to your desired region
+         
+     
+         
+      - name: EC2 STOP instance (dontforgetapp-dev)
+        run:  aws ec2 stop-instances --instance-ids i-0739d1abf28f9c741 --output text
+      
+        
